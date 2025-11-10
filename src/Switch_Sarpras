@@ -1,0 +1,28 @@
+enable
+configure terminal
+
+! --- 1. Buat VLAN 40 ---
+vlan 40
+ name Sarpras
+ exit
+
+! --- 2. Port yang ke Router_Pusat ---
+! (Asumsi kamu pakai port Fa0/1 di switch ini)
+interface FastEthernet0/1
+ description Ke-Router_Pusat-Fa0/3/0
+ switchport mode access
+ switchport access vlan 40
+ no shutdown
+ exit
+
+! --- 3. Port yang ke PC Sarpras ---
+! (Asumsi PC terhubung ke port Fa0/2)
+interface FastEthernet0/2
+ description Ke-PC-Sarpras
+ switchport mode access
+ switchport access vlan 40
+ no shutdown
+ exit
+
+end
+write memory
