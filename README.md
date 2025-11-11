@@ -6,7 +6,7 @@ Tugas ini mencakup perancangan topologi jaringan, perhitungan subnetting menggun
 
 ---
 
-## Deskripsi Tugas
+## 📝 Deskripsi Tugas
 
 Yayasan Pendidikan ARA akan membangun jaringan untuk beberapa unit kerja. Sebagian unit berada di kantor pusat, sedangkan Bidang Pengawas Sekolah berada di kantor cabang.
 
@@ -56,59 +56,73 @@ Jaringan diurutkan dari kebutuhan host terbesar ke terkecil untuk mengalokasikan
 | **Server & Admin** | 6 | 8 (2^3) | /29 | `255.255.255.248`| **`10.142.3.224`**| `10.142.3.225`| `10.142.3.225` - `10.142.3.230` | `10.142.3.231` |
 | **Link WAN** | 2 | 4 (2^2) | /30 | `255.255.255.252`| **`10.142.3.232`**| (N/A) | `10.142.3.233` - `10.142.3.234` | `10.142.3.235` |
 
-### 3. Perhitungan CIDR (Supernetting)
-
-Untuk memenuhi *requirement* tugas, *static route* di `Router_Cabang` di-agregasi (supernetting) untuk merangkum semua 5 jaringan LAN di `Router_Pusat`.
-
-* **Jaringan di Pusat yang akan dirangkum:**
-    * `10.142.0.0 /23` (Sekretariat)
-    * `10.142.2.0 /24` (Kurikulum)
-    * `10.142.3.0 /25` (Guru & Tendik)
-    * `10.142.3.128 /26` (Sarpras)
-    * `10.142.3.224 /29` (Server & Admin)
-* **Rute Agregasi (Supernet):** **`10.142.0.0 /22`**
-* **Penjelasan:** Rute `10.142.0.0 /22` (Subnet Mask `255.255.252.0`) mencakup *range* alamat `10.142.0.0` hingga `10.142.3.255`, yang secara efisien mencakup semua 5 jaringan di atas.
-
 ---
 
-## Implementasi Topologi & Konfigurasi
+## Implementasi & Langkah Konfigurasi
 
-### 1. Desain Topologi
+Desain topologi menggunakan 2 router (Pusat & Cabang) untuk memenuhi skenario soal dan mendemonstrasikan routing CIDR.
 
-Topologi dirancang dengan 2 router untuk memisahkan **Kantor Pusat** dan **Kantor Cabang** sesuai skenario, dihubungkan oleh satu **Link WAN**.
+### 1. Persiapan Perangkat Keras (Router)
+* **`Router_Pusat` (2911):** Module ditambahkan (router dalam keadaan mati):
+    * `HWIC-4ESW` (Untuk 4 port switch, dipakai untuk LAN Sarpras & Server)
+    * `HWIC-2T` (Untuk 2 port Serial, dipakai untuk Link WAN)
+* **`Router_Cabang` (1941):** Module ditambahkan:
+    * `HWIC-2T` (Untuk 2 port Serial, dipakai untuk Link WAN)
 
-* **`Router_Pusat` (Model 2911):** Bertindak sebagai *gateway* untuk 5 jaringan LAN (Sekretariat, Kurikulum, Guru, Sarpras, Server).
-* **`Router_Cabang` (Model 1941):** Bertindak sebagai *gateway* untuk 1 jaringan LAN (Bidang Pengawas).
-* **Link WAN:** Kedua router terhubung melalui link Serial (WAN) yang menggunakan subnet `10.142.3.232 /30`.
+### 2. Konfigurasi `Router_Pusat`
+Konfigurasi gateway dilakukan untuk 5 LAN dan 1 WAN.
 
-### 2. Poin Konfigurasi Penting
+* **Gateway LAN (Routed Port):** IP address dipasang langsung di interface fisik:
+    * `interface GigabitEthernet0/0` (Sekretariat): `ip address 10.142.0.1 255.255.254.0`
+    * `interface GigabitEthernet0/1` (Kurikulum): `ip address 10.142.2.1 255.255.255.0`
+    * `interface GigabitEthernet0/2` (Guru & Tendik): `ip address 10.142.3.1 255.255.255.128`
+* **Gateway LAN (SVI):** Karena `HWIC-4ESW` adalah module switch, gateway dibuat menggunakan **SVI (Interface VLAN)**:
+    * `interface Vlan40` (Sarpras): `ip address 10.142.3.129 255.255.255.192`
+    * `interface FastEthernet0/3/0` (Port fisik) dimasukkan ke VLAN: `switchport access vlan 40`
+    * `interface Vlan50` (Server): `ip address 10.142.3.225 255.255.255.248`
+    * `interface FastEthernet0/3/1` (Port fisik) dimasukkan ke VLAN: `switchport access vlan 50`
+* **Gateway WAN (DCE):**
+    * `interface Serial0/2/0`: `ip address 10.142.3.233 255.255.255.252`
+    * Sisi DCE (pemberi sinyal jam): `clock rate 64000`
 
-#### Konfigurasi Gateway (SVI)
-Karena `Router_Pusat` menggunakan module `HWIC-4ESW` (yang merupakan module switch Layer 2), IP *gateway* untuk jaringan **Sarpras** dan **Server** tidak bisa dipasang di port fisik (`FastEthernet`). Solusinya adalah menggunakan **SVI (Interface VLAN)**:
+### 3. Konfigurasi `Router_Cabang`
+* **Gateway LAN:**
+    * `interface GigabitEthernet0/0` (Pengawas): `ip address 10.142.3.193 255.255.255.224`
+* **Gateway WAN (DTE):**
+    * `interface Serial0/0/0`: `ip address 10.142.3.234 255.255.255.252`
+    * Sisi DTE (penerima sinyal jam): **`no clock rate`** (Perintah ini penting untuk menghapus `clock rate` default agar link tidak konflik).
 
-* **Jaringan Sarpras:**
-    * Gateway (SVI): `interface Vlan40` diberi IP `10.142.3.129`.
-    * Port Fisik Router: `interface FastEthernet0/3/0` dimasukkan ke VLAN 40 (`switchport access vlan 40`).
-    * Switch Eksternal: Port yang terhubung ke router dan PC juga dikonfigurasi ke `VLAN 40`.
-* **Jaringan Server & Admin:**
-    * Gateway (SVI): `interface Vlan50` diberi IP `10.142.3.225`.
-    * Port Fisik Router: `interface FastEthernet0/3/1` dimasukkan ke VLAN 50.
-    * Switch Eksternal: Dikonfigurasi untuk `VLAN 50`.
-
-#### Konfigurasi Static Routing
-Untuk menghubungkan kedua lokasi, *static route* digunakan:
+### 4. Konfigurasi Static Routing (CIDR)
+Routing statis diperlukan agar kedua router dapat saling bertukar informasi.
 
 * **Di `Router_Pusat`:** (Rute spesifik ke jaringan Cabang)
     ```
     ip route 10.142.3.192 255.255.255.224 10.142.3.234
     ```
 * **Di `Router_Cabang`:** (Rute agregasi/CIDR ke semua jaringan Pusat)
+    Rute ini merangkum 5 jaringan di Pusat menjadi 1 rute tunggal (`10.142.0.0 /22`).
     ```
     ip route 10.142.0.0 255.255.252.0 10.142.3.233
     ```
 
+### 5. Menyalakan Interface (Penting!)
+Semua interface yang dikonfigurasi di atas (Gi0/0, Gi0/1, Gi0/2, Se0/2/0, Vlan40, Vlan50 di Pusat, dan Gi0/0, Se0/0/0 di Cabang) harus dinyalakan menggunakan perintah **`no shutdown`**.
+
+### 6. Konfigurasi Switch Eksternal
+Dua switch (Sarpras & Server) yang terhubung ke module `HWIC-4ESW` perlu konfigurasi VLAN agar sesuai dengan router.
+* **`Switch_Sarpras`:** Port yang terhubung ke router dan PC harus dimasukkan ke `VLAN 40`.
+* **`Switch_Server_Admin`:** Port yang terhubung ke router dan PC harus dimasukkan ke `VLAN 50`.
+
+### 7. Konfigurasi IP Host
+Semua PC (host) dikonfigurasi secara statis dengan:
+* **IP Address:** Alamat unik dari "Range Host" (misal: `10.142.0.10`).
+* **Subnet Mask:** Sesuai dengan jaringannya (misal: `255.255.254.0`).
+* **Default Gateway:** Alamat IP router di jaringan itu (misal: `10.142.0.1`).
+
 ---
 
-## 🏁 Hasil Akhir
+## 🏁 Validasi & Hasil Akhir
 
-Seluruh konfigurasi telah diterapkan pada file `.pkt` dalam repositori ini. Semua perangkat di 6 jaringan LAN yang berbeda (termasuk antar-cabang) dapat saling terhubung, dibuktikan dengan tes `ping` yang sukses.
+Konektivitas divalidasi menggunakan dua perintah utama:
+1.  **`show ip interface brief`:** Memastikan semua interface yang digunakan (termasuk Serial dan Vlan) memiliki status `up` dan `up`.
+2.  **`ping`:** Melakukan tes `ping` antar PC. Tes `ping` dari PC di jaringan Sekretariat (`10.142.0.10`) ke PC di jaringan Pengawas (`10.142.3.194`) berhasil, membuktikan seluruh topologi, VLSM, dan routing (termasuk CIDR) telah diimplementasikan dengan benar.
