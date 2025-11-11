@@ -6,7 +6,7 @@ Tugas ini mencakup perancangan topologi jaringan, perhitungan subnetting menggun
 
 ---
 
-## 📝 Deskripsi Tugas
+## Deskripsi Tugas
 
 Yayasan Pendidikan ARA akan membangun jaringan untuk beberapa unit kerja. Sebagian unit berada di kantor pusat, sedangkan Bidang Pengawas Sekolah berada di kantor cabang.
 
