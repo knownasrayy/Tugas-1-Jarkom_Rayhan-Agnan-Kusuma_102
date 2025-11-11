@@ -28,7 +28,9 @@ Yayasan Pendidikan ARA akan membangun jaringan untuk beberapa unit kerja. Sebagi
 
 ---
 
-## Analisis & Perhitungan Jaringan
+## Analisis & Perhitungan Jaringan (Sesuai Laporan)
+
+Berikut adalah rincian perhitungan yang diminta untuk laporan.
 
 ### 1. Penentuan Base Network Unik
 
@@ -42,9 +44,9 @@ Tugas ini menggunakan *base network* unik berdasarkan NRP `10.(NRP mod 256).0.0`
     * Hasil mod: `5027241102 - 5027240960 = 142`
 * **Base Network:** `10.142.0.0`
 
-### 2. Tabel Perhitungan VLSM
+### 2. Tabel Hasil VLSM
 
-Jaringan diurutkan dari kebutuhan host terbesar ke terkecil untuk mengalokasikan IP dari *base network* `10.142.0.0`.
+Jaringan diurutkan dari kebutuhan host terbesar ke terkecil untuk mengalokasikan IP dari *base network* `10.142.0.0`. Kolom "Gateway" adalah IP yang dialokasikan untuk interface router.
 
 | Kebutuhan Ruang | Jml Host | Ukuran Blok (2^n) | Prefix (/) | Subnet Mask | Network Address | Gateway (IP Router) | Range Host (Usable) | Broadcast Address |
 | :--- | :---: | :---: | :---: | :--- | :--- | :--- | :--- | :--- |
@@ -55,6 +57,31 @@ Jaringan diurutkan dari kebutuhan host terbesar ke terkecil untuk mengalokasikan
 | **Bid. Pengawas** | 18 | 32 (2^5) | /27 | `255.255.255.224`| **`10.142.3.192`**| `10.142.3.193`| `10.142.3.193` - `10.142.3.222` | `10.142.3.223` |
 | **Server & Admin** | 6 | 8 (2^3) | /29 | `255.255.255.248`| **`10.142.3.224`**| `10.142.3.225`| `10.142.3.225` - `10.142.3.230` | `10.142.3.231` |
 | **Link WAN** | 2 | 4 (2^2) | /30 | `255.255.255.252`| **`10.142.3.232`**| (N/A) | `10.142.3.233` - `10.142.3.234` | `10.142.3.235` |
+
+### 3. Tabel Hasil CIDR (Agregasi Rute)
+
+Tabel ini menunjukkan satu rute agregat (supernet) yang digunakan di `Router_Cabang` untuk mewakili *semua* jaringan di Kantor Pusat.
+
+| Deskripsi | Network (Agregat) | Subnet Mask | Prefix (/) | Range Host (Usable) | Broadcast | Gateway (Next-Hop) |
+| :--- | :--- | :--- | :---: | :--- | :--- | :--- |
+| Rangkuman 5 LAN di Kantor Pusat | **`10.142.0.0`** | **`255.255.252.0`** | **/22** | `10.142.0.1` - `10.142.3.254` | `10.142.3.255` | **`10.142.3.233`** |
+
+**Penjelasan:** "Gateway (Next-Hop)" adalah IP `Router_Pusat` dari sudut pandang `Router_Cabang`. Perintah `ip route 10.142.0.0 255.255.252.0 10.142.3.233` digunakan di `Router_Cabang` untuk menerapkan rute CIDR ini.
+
+### 4. Tabel / Visualisasi Supernetting dari CIDR
+
+Tabel ini memvisualisasikan mengapa rute agregasi `10.142.0.0 /22` adalah pilihan yang benar.
+
+| Jaringan LAN di Pusat | Network Address | Prefix | Range Alamat | Status |
+| :--- | :--- | :---: | :--- | :--- |
+| Sekretariat | `10.142.0.0` | /23 | `10.142.0.0` - `10.142.1.255` | **Tercakup** |
+| Kurikulum | `10.142.2.0` | /24 | `10.142.2.0` - `10.142.2.255` | **Tercakup** |
+| Guru & Tendik | `10.142.3.0` | /25 | `10.142.3.0` - `10.142.3.127` | **Tercakup** |
+| Sarpras | `10.142.3.128` | /26 | `10.142.3.128` - `10.142.3.191` | **Tercakup** |
+| Server & Admin | `10.142.3.224` | /29 | `10.142.3.224` - `10.142.3.231` | **Tercakup** |
+| **Rute Agregasi (Supernet)** | **`10.142.0.0`** | **/22** | **`10.142.0.0` - `10.142.3.255`** | **Mencakup Semua** |
+
+**Penjelasan:** Rute agregasi `10.142.0.0 /22` (mask `255.255.252.0`) memiliki *range* dari `10.142.0.0` hingga `10.142.3.255`. Seperti yang terlihat di tabel, *range* ini **sepenuhnya mencakup** semua 5 jaringan LAN yang ada di Kantor Pusat.
 
 ---
 
@@ -121,7 +148,7 @@ Semua PC (host) dikonfigurasi secara statis dengan:
 
 ---
 
-## 🏁 Validasi & Hasil Akhir
+## Validasi & Hasil Akhir
 
 Konektivitas divalidasi menggunakan dua perintah utama:
 1.  **`show ip interface brief`:** Memastikan semua interface yang digunakan (termasuk Serial dan Vlan) memiliki status `up` dan `up`.
