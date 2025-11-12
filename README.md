@@ -91,7 +91,7 @@ Tabel ini memvisualisasikan mengapa rute agregasi `10.142.0.0 /22` adalah piliha
 
 Desain topologi menggunakan 2 router (Pusat & Cabang) untuk memenuhi skenario soal dan mendemonstrasikan routing CIDR.
 
-*(Letakkan file `Screenshot_178.png` kamu di sini)*
+<img width="1902" height="738" alt="Image" src="https://github.com/user-attachments/assets/0c83c411-07ac-4547-8196-8b2136ce1916" />
 `[Gambar topologi jaringan final]`
 
 Topologi ini terdiri dari:
