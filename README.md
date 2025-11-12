@@ -6,7 +6,7 @@ Tugas ini mencakup perancangan topologi jaringan, perhitungan subnetting menggun
 
 ---
 
-## Deskripsi Tugas
+##  deskripsi Tugas
 
 Yayasan Pendidikan ARA akan membangun jaringan untuk beberapa unit kerja. Sebagian unit berada di kantor pusat, sedangkan Bidang Pengawas Sekolah berada di kantor cabang.
 
@@ -87,16 +87,26 @@ Tabel ini memvisualisasikan mengapa rute agregasi `10.142.0.0 /22` adalah piliha
 
 ## Implementasi & Langkah Konfigurasi
 
+### 1. Desain Topologi Final
+
 Desain topologi menggunakan 2 router (Pusat & Cabang) untuk memenuhi skenario soal dan mendemonstrasikan routing CIDR.
 
-### 1. Persiapan Perangkat Keras (Router)
+*(Letakkan file `Screenshot_178.png` kamu di sini)*
+`[Gambar topologi jaringan final]`
+
+Topologi ini terdiri dari:
+* **`Router_Pusat` (Model 2911):** Bertindak sebagai *gateway* untuk 5 jaringan LAN (Sekretariat, Kurikulum, Guru, Sarpras, Server).
+* **`Router_Cabang` (Model 1941):** Bertindak sebagai *gateway* untuk 1 jaringan LAN (Bidang Pengawas).
+* **Link WAN:** Kedua router terhubung melalui link Serial (WAN) yang menggunakan subnet `10.142.3.232 /30`.
+
+### 2. Persiapan Perangkat Keras (Router)
 * **`Router_Pusat` (2911):** Module ditambahkan (router dalam keadaan mati):
     * `HWIC-4ESW` (Untuk 4 port switch, dipakai untuk LAN Sarpras & Server)
     * `HWIC-2T` (Untuk 2 port Serial, dipakai untuk Link WAN)
 * **`Router_Cabang` (1941):** Module ditambahkan:
     * `HWIC-2T` (Untuk 2 port Serial, dipakai untuk Link WAN)
 
-### 2. Konfigurasi `Router_Pusat`
+### 3. Konfigurasi `Router_Pusat`
 Konfigurasi gateway dilakukan untuk 5 LAN dan 1 WAN.
 
 * **Gateway LAN (Routed Port):** IP address dipasang langsung di interface fisik:
@@ -112,14 +122,14 @@ Konfigurasi gateway dilakukan untuk 5 LAN dan 1 WAN.
     * `interface Serial0/2/0`: `ip address 10.142.3.233 255.255.255.252`
     * Sisi DCE (pemberi sinyal jam): `clock rate 64000`
 
-### 3. Konfigurasi `Router_Cabang`
+### 4. Konfigurasi `Router_Cabang`
 * **Gateway LAN:**
     * `interface GigabitEthernet0/0` (Pengawas): `ip address 10.142.3.193 255.255.255.224`
 * **Gateway WAN (DTE):**
     * `interface Serial0/0/0`: `ip address 10.142.3.234 255.255.255.252`
     * Sisi DTE (penerima sinyal jam): **`no clock rate`** (Perintah ini penting untuk menghapus `clock rate` default agar link tidak konflik).
 
-### 4. Konfigurasi Static Routing (CIDR)
+### 5. Konfigurasi Static Routing (CIDR)
 Routing statis diperlukan agar kedua router dapat saling bertukar informasi.
 
 * **Di `Router_Pusat`:** (Rute spesifik ke jaringan Cabang)
@@ -132,23 +142,68 @@ Routing statis diperlukan agar kedua router dapat saling bertukar informasi.
     ip route 10.142.0.0 255.255.252.0 10.142.3.233
     ```
 
-### 5. Menyalakan Interface (Penting!)
+### 6. Menyalakan Interface (Penting!)
 Semua interface yang dikonfigurasi di atas (Gi0/0, Gi0/1, Gi0/2, Se0/2/0, Vlan40, Vlan50 di Pusat, dan Gi0/0, Se0/0/0 di Cabang) harus dinyalakan menggunakan perintah **`no shutdown`**.
 
-### 6. Konfigurasi Switch Eksternal
+### 7. Konfigurasi Switch Eksternal
 Dua switch (Sarpras & Server) yang terhubung ke module `HWIC-4ESW` perlu konfigurasi VLAN agar sesuai dengan router.
 * **`Switch_Sarpras`:** Port yang terhubung ke router dan PC harus dimasukkan ke `VLAN 40`.
 * **`Switch_Server_Admin`:** Port yang terhubung ke router dan PC harus dimasukkan ke `VLAN 50`.
 
-### 7. Konfigurasi IP Host
-Semua PC (host) dikonfigurasi secara statis dengan:
-* **IP Address:** Alamat unik dari "Range Host" (misal: `10.142.0.10`).
-* **Subnet Mask:** Sesuai dengan jaringannya (misal: `255.255.254.0`).
-* **Default Gateway:** Alamat IP router di jaringan itu (misal: `10.142.0.1`).
+### 8. Konfigurasi IP Host (Contoh Alokasi)
+Semua PC (host) dikonfigurasi secara statis. Berikut adalah contoh alokasi 5 IP untuk setiap jaringan:
+
+* **Jaringan Sekretariat (`/23`)**
+    * **Gateway:** `10.142.0.1` | **Mask:** `255.255.254.0`
+    * PC 1: `10.142.0.10`
+    * PC 2: `10.142.0.11`
+    * PC 3: `10.142.0.12`
+    * PC 4: `10.142.0.13`
+    * PC 5: `10.142.0.14`
+
+* **Jaringan Kurikulum (`/24`)**
+    * **Gateway:** `10.142.2.1` | **Mask:** `255.255.255.0`
+    * PC 1: `10.142.2.10`
+    * PC 2: `10.142.2.11`
+    * PC 3: `10.142.2.12`
+    * PC 4: `10.142.2.13`
+    * PC 5: `10.142.2.14`
+
+* **Jaringan Guru & Tendik (`/25`)**
+    * **Gateway:** `10.142.3.1` | **Mask:** `255.255.255.128`
+    * PC 1: `10.142.3.10`
+    * PC 2: `10.142.3.11`
+    * PC 3: `10.142.3.12`
+    * PC 4: `10.142.3.13`
+    * PC 5: `10.142.3.14`
+
+* **Jaringan Sarpras (`/26`)**
+    * **Gateway:** `10.142.3.129` | **Mask:** `255.255.255.192`
+    * PC 1: `10.142.3.130`
+    * PC 2: `10.142.3.131`
+    * PC 3: `10.142.3.132`
+    * PC 4: `10.142.3.133`
+    * PC 5: `10.142.3.134`
+
+* **Jaringan Pengawas (Cabang) (`/27`)**
+    * **Gateway:** `10.142.3.193` | **Mask:** `255.255.255.224`
+    * PC 1: `10.142.3.194`
+    * PC 2: `10.142.3.195`
+    * PC 3: `10.142.3.196`
+    * PC 4: `10.142.3.197`
+    * PC 5: `10.142.3.198`
+
+* **Jaringan Server & Admin (`/29`)**
+    * **Gateway:** `10.142.3.225` | **Mask:** `255.255.255.248`
+    * PC 1: `10.142.3.226`
+    * PC 2: `10.142.3.227`
+    * PC 3: `10.142.3.228`
+    * PC 4: `10.142.3.229`
+    * PC 5: `10.142.3.230`
 
 ---
 
-## Validasi & Hasil Akhir
+## 🏁 Validasi & Hasil Akhir
 
 Konektivitas divalidasi menggunakan dua perintah utama:
 1.  **`show ip interface brief`:** Memastikan semua interface yang digunakan (termasuk Serial dan Vlan) memiliki status `up` dan `up`.
